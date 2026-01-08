@@ -358,8 +358,10 @@
     </div>
 
     <script>
-        // APIのベースURL
-        const API_BASE_URL = 'http://localhost:8001';
+        // APIのベースURL（環境に応じて自動設定）
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8001'
+            : 'https://your-backend-app.azurewebsites.net'; // バックエンドのURLに変更してください
 
         const chatMessages = document.getElementById('chatMessages');
         const chatForm = document.getElementById('chatForm');
