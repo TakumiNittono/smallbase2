@@ -1,0 +1,29 @@
+{
+  "routes": [
+    {
+      "route": "/",
+      "serve": "/frontend/index.html",
+      "statusCode": 200
+    },
+    {
+      "route": "/admin",
+      "serve": "/frontend/admin/index.html",
+      "statusCode": 200
+    },
+    {
+      "route": "/admin/login",
+      "serve": "/frontend/admin/login.html",
+      "statusCode": 200
+    }
+  ],
+  "navigationFallback": {
+    "fallback": "/frontend/index.html"
+  },
+  "responseOverrides": {
+    "404": {
+      "serve": "/frontend/index.html",
+      "statusCode": 200
+    }
+  }
+}
+

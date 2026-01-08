@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG質問 - Smallbase MVP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-container {
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .chat-header {
+            background: #2c3e50;
+            color: white;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 3px solid #3498db;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .admin-button {
+            position: absolute;
+            right: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .admin-button:hover {
+            background: #2980b9;
+            color: white;
+            text-decoration: none;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 0.75rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #3498db;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: #3498db;
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .message.assistant .message-content {
+            background: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .message-sources {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .sources-toggle {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .sources-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .sources-toggle-icon {
+            transition: transform 0.3s;
+            font-size: 0.75rem;
+        }
+
+        .sources-toggle.expanded .sources-toggle-icon {
+            transform: rotate(90deg);
+        }
+
+        .sources-list {
+            margin-top: 0.5rem;
+            padding-left: 1.25rem;
+            display: none;
+        }
+
+        .sources-toggle.expanded + .sources-list {
+            display: block;
+        }
+
+        .sources-list ul {
+            margin: 0.25rem 0 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .sources-list li {
+            padding: 0.25rem 0;
+            color: #495057;
+        }
+
+        .chat-input-container {
+            padding: 1.25rem 1.5rem;
+            background: #ffffff;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9375rem;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+
+        .chat-send-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .chat-send-btn:hover:not(:disabled) {
+            background: #2980b9;
+        }
+
+        .chat-send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading-indicator {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3498db;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #fcc;
+            margin: 1rem;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* スクロールバーのスタイル */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>RAG質問チャット</h1>
+            <a href="http://localhost:8001/admin/login" class="admin-button">
+                <span>管理画面</span>
+            </a>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-icon">💭</div>
+                <h3>質問を入力してください</h3>
+                <p class="mt-2">ナレッジベースから関連情報を検索して回答します</p>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <form id="chatForm">
+                <div class="chat-input-form">
+                    <input 
+                        type="text" 
+                        class="chat-input" 
+                        id="questionInput" 
+                        placeholder="質問を入力してください..." 
+                        required
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="chat-send-btn" id="sendBtn">
+                        送信
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // APIのベースURL
+        const API_BASE_URL = 'http://localhost:8001';
+
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const emptyState = document.getElementById('emptyState');
+
+        // メッセージを追加
+        function addMessage(content, type, sources = null) {
+            // 空状態を非表示
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'user' ? '👤' : '🤖';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            if (type === 'user') {
+                contentDiv.textContent = content;
+            } else {
+                // 回答を表示
+                const answerDiv = document.createElement('div');
+                answerDiv.textContent = content;
+                contentDiv.appendChild(answerDiv);
+
+                // 参照元を表示（クリックで展開・折りたたみ）
+                if (sources && sources.length > 0) {
+                    const sourcesDiv = document.createElement('div');
+                    sourcesDiv.className = 'message-sources';
+                    
+                    // トグルボタン
+                    const toggleBtn = document.createElement('div');
+                    toggleBtn.className = 'sources-toggle';
+                    toggleBtn.innerHTML = `
+                        <span class="sources-toggle-icon">▶</span>
+                        <strong>参照元 (${sources.length}件)</strong>
+                    `;
+                    
+                    // 参照元リスト
+                    const sourcesList = document.createElement('div');
+                    sourcesList.className = 'sources-list';
+                    const ul = document.createElement('ul');
+                    sources.forEach((source, index) => {
+                        const li = document.createElement('li');
+                        const filename = source.filename || '不明';
+                        li.textContent = `${filename} (チャンク ${index + 1})`;
+                        ul.appendChild(li);
+                    });
+                    sourcesList.appendChild(ul);
+                    
+                    // クリックイベント
+                    toggleBtn.addEventListener('click', () => {
+                        toggleBtn.classList.toggle('expanded');
+                    });
+                    
+                    sourcesDiv.appendChild(toggleBtn);
+                    sourcesDiv.appendChild(sourcesList);
+                    contentDiv.appendChild(sourcesDiv);
+                }
+            }
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+
+            // スクロールを最下部に
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // ローディング表示
+        function showLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message assistant';
+            loadingDiv.id = 'loadingMessage';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = '🤖';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = `
+                <div class="loading-indicator">
+                    <span>考え中</span>
+                    <div class="loading-dots">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                </div>
+            `;
+
+            loadingDiv.appendChild(avatar);
+            loadingDiv.appendChild(contentDiv);
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // ローディング非表示
+        function hideLoading() {
+            const loadingMessage = document.getElementById('loadingMessage');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+        }
+
+        // エラーメッセージ表示
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = `エラー: ${message}`;
+            chatMessages.appendChild(errorDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // フォーム送信
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // 入力欄を即座にクリア
+            questionInput.value = '';
+            
+            // ユーザーの質問を表示
+            addMessage(question, 'user');
+            
+            sendBtn.disabled = true;
+            sendBtn.textContent = '送信中...';
+
+            // ローディング表示
+            showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question }),
+                });
+                
+                const data = await response.json();
+                
+                // ローディング非表示
+                hideLoading();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || '質問の処理に失敗しました');
+                }
+                
+                // 回答を表示
+                addMessage(data.answer || '回答がありません', 'assistant', data.sources);
+                
+            } catch (error) {
+                hideLoading();
+                showError(error.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '送信';
+                questionInput.focus();
+            }
+        });
+
+        // IME変換中かどうかを追跡
+        let isComposing = false;
+        
+        questionInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+        
+        questionInput.addEventListener('compositionend', () => {
+            isComposing = false;
+        });
+
+        // Enterキーで送信（IME変換中は送信しない）
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+                e.preventDefault();
+                // フォーム送信をトリガー（入力欄のクリアはsubmitイベント内で実行される）
+                if (questionInput.value.trim() && !sendBtn.disabled) {
+                    chatForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                }
+            }
+        });
+    </script>
+</body>
+</html>
