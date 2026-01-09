@@ -12,13 +12,13 @@ import os
 # 環境変数の読み込み
 load_dotenv()
 
-# 設定のインポート（環境変数が設定されていない場合でもエラーにならないように）
-try:
-    from config import settings
-    cors_origins = settings.cors_origins
-except Exception:
-    # 環境変数が設定されていない場合はデフォルト値を使用
-    cors_origins = ["http://localhost:3000", "http://localhost:8080"]
+# CORS設定: 環境変数から直接読み込む
+cors_env = os.getenv("CORS_ORIGINS", "")
+if cors_env:
+    cors_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+else:
+    # デフォルト値（開発環境用）
+    cors_origins = ["http://localhost:3000", "http://localhost:8080", "http://localhost:8001"]
 
 app = FastAPI(
     title="Smallbase MVP API",
